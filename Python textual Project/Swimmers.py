@@ -56,19 +56,13 @@ class SwimmerApp(App):
             self.title = str(event.value)
             self.swimmer_name = event.value
             optionlist.clear_options()
-            self.show_swimmer_events(self.swimmer_name)
+            self.show_swimmer_events()
     
-    def get_swimmer_file(self, swimmer_name):
-        """Get swimmer data."""
-        for filename in os.listdir(FOLDER):
-            result = get_swimmers_data(filename)
-            if swimmer_name == result[0]:
-                return result
             
 
-    def show_swimmer_events(self, swimmer_name):
+    def show_swimmer_events(self):
         """Create option list for events."""
-        swimmer_events_list = list_swimmer_events(FOLDER, swimmer_name)
+        swimmer_events_list = list_swimmer_events(FOLDER, self.swimmer_name)
         for i in range(len(swimmer_events_list)):
             optionlist.add_option(Option(str(swimmer_events_list[i])))
         self.mount(optionlist) 
@@ -76,14 +70,21 @@ class SwimmerApp(App):
        
     @on(OptionList.OptionSelected)
     def select_event(self, event:OptionList.OptionSelected) -> None:
-        swimmer_event = str(event.namespace)
+        index = event.option_index
+        self.swimmer_event = optionlist.get_option_at_index(index).prompt
         html_content = self.create_html()
         with open(self.swimmer_name + ".html", "w") as df:
             print(html_content, file=df)  
             webbrowser.open_new_tab(self.swimmer_name + ".html")
+        self.push_screen(ExitScreen())
         
-        self.push_screen("start")
             
+    def get_swimmer_file(self):
+        """Get swimmer data."""
+        for filename in os.listdir(FOLDER):
+            result = get_swimmers_data(filename)
+            if self.swimmer_name in result and self.swimmer_event.split()[0] in result[2] and self.swimmer_event.split()[1] in result[3]:
+                return result
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
@@ -94,7 +95,7 @@ class SwimmerApp(App):
         """Create the HTML file."""
         """inspired from BarChart.ipynb created by Paul Barry"""
 
-        data = self.get_swimmer_file(self.swimmer_name)
+        data = self.get_swimmer_file()
         name, age, distance, stroke, times, values, average = data 
         title = f"{name} (Under {age}) {distance} - {stroke}"
 
