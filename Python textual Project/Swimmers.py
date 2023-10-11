@@ -5,57 +5,86 @@ from textual.app import App, ComposeResult
 from textual.widgets import *
 from textual.events import *
 from textual.widgets.option_list import *
+from textual.screen import *
 
-from swim_utils import *; #created by Paul Barry
-from hfpy_utils import *; #created by Paul Barry
+from swim_utils import *; """created by Paul Barry"""
+from hfpy_utils import *; """created by Paul Barry"""
 from my_utils import *
 
-FOLDER = r"C:\Users\mjcul\OneDrive - Institute of Technology Carlow\Year 3\Cloud Dev\CA\swimdata"
+FOLDER = r"swimdata/"
 
-NAMES = getNames(FOLDER) # from my_utils.py
-SORTED_NAMES = sorted(NAMES) # 
+NAMES = getNames(FOLDER)
+SORTED_NAMES = sorted(NAMES)
+
+optionlist = OptionList()
+
+class ExitScreen(Screen):
+    def compose(self) -> ComposeResult:
+        yield Label("Would you like to exit?")
+        yield Button("Yes", id="Exit", variant="success")
+        yield Button("No", id="Continue", variant="error")
+
+    @on(Button.Pressed, "#Exit")
+    def button_pressed_Yes(self) -> None:
+        """Event handler called when a button is pressed."""
+        self.app.exit()
+
+    @on(Button.Pressed, "#Continue")
+    def button_pressed_No(self) -> None:
+        """Event handler called when a button is pressed."""
+        self.app.pop_screen()
+
  
 class SwimmerApp(App):
     """Main application."""
 
-    def compose(self) -> ComposeResult:
-        """Create child widgets for the app."""
-        yield Header()
-        yield Select([(name, name) for name in SORTED_NAMES])
-        yield Footer()
-            
     CSS_PATH = "Swimmers.tcss"
 
     BINDINGS = [("d", "toggle_dark", "Toggle dark mode")]
+    
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield Select([(name, name) for name in SORTED_NAMES])
+        yield Footer()
+        self.install_screen(ExitScreen(), "start")
 
-    @on(Select.Changed) # when name is chosen
+    
+    @on(Select.Changed)
     def select_changed(self, event: Select.Changed) -> None:
         if event.value is not None:
             """Handle the select changed event."""
             self.title = str(event.value)
             self.swimmer_name = event.value
-            self.mount(Label(str("Swimmer '" + self.swimmer_name + "' has been selected.")))
-
-            self.show_swimmer_events(self.swimmer_name)        
+            optionlist.clear_options()
+            self.show_swimmer_events(self.swimmer_name)
+    
+    def get_swimmer_file(self, swimmer_name):
+        """Get swimmer data."""
+        for filename in os.listdir(FOLDER):
+            result = get_swimmers_data(filename)
+            if swimmer_name == result[0]:
+                return result
+            
 
     def show_swimmer_events(self, swimmer_name):
         """Create option list for events."""
         swimmer_events_list = list_swimmer_events(FOLDER, swimmer_name)
-        optionlist = OptionList()
         for i in range(len(swimmer_events_list)):
             optionlist.add_option(Option(str(swimmer_events_list[i])))
         self.mount(optionlist) 
 
        
-    @on(OptionList.OptionSelected)  # when event is selected
-    def select_event(self, event: OptionList.OptionSelected) -> None:
+    @on(OptionList.OptionSelected)
+    def select_event(self, event:OptionList.OptionSelected) -> None:
         swimmer_event = str(event.namespace)
-        html_content = self.create_html(self.swimmer_name, swimmer_event)
+        html_content = self.create_html()
         with open(self.swimmer_name + ".html", "w") as df:
             print(html_content, file=df)  
             webbrowser.open_new_tab(self.swimmer_name + ".html")
+        
+        self.push_screen("start")
+            
 
-  
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
         self.dark = not self.dark 
@@ -65,7 +94,7 @@ class SwimmerApp(App):
         """Create the HTML file."""
         """inspired from BarChart.ipynb created by Paul Barry"""
 
-        data = self.get_swimmer_data(self.swimmer_name)
+        data = self.get_swimmer_file(self.swimmer_name)
         name, age, distance, stroke, times, values, average = data 
         title = f"{name} (Under {age}) {distance} - {stroke}"
 
@@ -105,7 +134,7 @@ class SwimmerApp(App):
         
         html = header + body + footer
         return html
-    
+            
 
 if __name__ == "__main__":
     app = SwimmerApp()
